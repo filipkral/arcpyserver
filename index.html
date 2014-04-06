@@ -1,0 +1,208 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <!--<link rel="shortcut icon" href="../../assets/ico/favicon.ico">-->
+
+    <title>ArcpyServer Demo</title>
+
+    <!-- Bootstrap core CSS -->
+    <!--<link href="../../dist/css/bootstrap.min.css" rel="stylesheet">-->
+    <link href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!--Leaflet css-->
+    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.2/leaflet.css" />
+
+    <!-- Custom styles for this template -->
+    <!--<link href="navbar-fixed-top.css" rel="stylesheet">-->
+
+    <!-- Just for debugging purposes. Don't actually copy this line! -->
+    <!--[if lt IE 9]><script src="../../assets/js/ie8-responsive-file-warning.js"></script><![endif]-->
+
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+      <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    
+    <style>
+      #map {
+        height: 400px;
+        width: 100%;
+        margin-top: 10px;
+      }
+      #status{
+        font-size: 70%;
+        color: #999;
+      }
+    </style>
+  </head>
+
+  <body>
+
+    <!-- Fixed navbar -->
+    <div class="navbar navbar-default navbar-static-top" role="navigation">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="#">ArcpyServer</a>
+        </div>
+        <div class="navbar-collapse collapse">
+          <ul class="nav navbar-nav">
+            <li><a href="http://github.com/filipkral/arcpyserver">About</a></li>
+          </ul>
+        </div><!--/.nav-collapse -->
+      </div>
+    </div>
+
+    <div class="container">
+
+      <!-- Main component for a primary marketing message or call to action -->
+      <div><!-- class="page-header">-->
+        <h1>ArcpyServer Demo</h1>
+        <p>GeoJSON from Esri feature classes and shapefiles through arcpy and Python's Simple HTTP Server.</p>
+      </div>
+      <form class="form-inline" role="form">
+        <select id='selectcountry' class="form-control">
+        </select>
+        <input type="button" id="addcities" class="btn btn-sm btn-primary" value="Add cities" />
+        <input type="button" id="addcountries" class="btn btn-sm btn-primary" value="Add country" />
+        <input type="button" id="clearmap" class="btn btn-sm btn-primary" value="Clear map" />
+      </form>
+      <p id="status">Status.</p>
+
+    </div> <!-- /container -->
+    <div id="map"></div>
+
+
+    <!-- Bootstrap core JavaScript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+    <!--<script src="../../dist/js/bootstrap.min.js"></script>-->
+    <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
+    <!--Leaflet script-->
+    <script src="http://cdn.leafletjs.com/leaflet-0.7.2/leaflet.js"></script>
+    <script type="text/javascript">
+      $( document ).ready( function(){
+        
+        // populate dropdown list (from a hard-coded json to save time here)
+        //var countries = ['Albania','Andorra','Armenia','Austria','Azerbaijan','Belarus','Belgium','Bosnia and Herzegovina','Bulgaria','Croatia','Cyprus','Czech Republic','Denmark','Estonia','Finland','French Republic','Georgia','Germany','Greece','Hungary','Iceland','Iran','Iraq','Ireland','Italy','Kingdom of Norway','Kingdom of Spain','Kingdom of the Netherlands','Kosovo','Latvia','Liechtenstein','Lithuania','Luxembourg','Macedonia','Malta','Moldova','Monaco','Montenegro','Morocco','Northern Cyprus','Poland','Portugal','Republic of Serbia','Romania','Russia','San Marino','Slovakia','Slovenia','Sweden','Switzerland','Syria','Turkey','Ukraine','United Kingdom','Vatican (Holy Sea)'];
+        var countries = ['Aland','Albania','Andorra','Armenia','Austria','Azerbaijan','Belarus','Belgium','Bosnia and Herzegovina','Bulgaria','Croatia','Cyprus','Cyprus No Mans Area','Czech Republic','Denmark','Estonia','Faroe Islands','Finland','France','French Polynesia','Georgia','Germany','Gibraltar','Greece','Greenland','Hungary','Iceland','Iran','Iraq','Ireland','Isle of Man','Italy','Kosovo','Latvia','Liechtenstein','Lithuania','Luxembourg','Macedonia','Malta','Moldova','Monaco','Montenegro','Morocco','Netherlands','New Caledonia','Northern Cyprus','Norway','Poland','Portugal','Republic of Serbia','Romania','Russia','San Marino','Slovakia','Slovenia','Spain','Sweden','Switzerland','Syria','Turkey','Ukraine','United Kingdom','Vatican'];
+        var selectcountry = $('#selectcountry')[0];
+        var country;
+        for (var i in countries){
+            country = countries[i];
+            selectcountry.innerHTML += '<option value="' + country + '">' + country + '</option>';
+        }
+        window.selectcountry = selectcountry;
+        
+        var map = L.map('map').setView([50.5, 2.0], 4);
+        /*
+        L.tileLayer('http://{s}.tile.cloudmade.com/API-key/997/256/{z}/{x}/{y}.png', {
+          attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="http://cloudmade.com">CloudMade</a>',
+          maxZoom: 18
+        }).addTo(map);
+        */
+        L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map); 
+        
+        
+        // add GeoJSON served from ArcpyServer
+        // http://127.0.0.1:8765/arcpyserver?dataset=cities&where=sov0name=%27United%20Kingdom%27
+        
+        $('#clearmap').on('click', function(){
+            console.log('TODO: clearing map should be way more robust than this');
+            for(var i in map._layers){
+                if (map._layers[i]["_url"] !== 'http://{s}.tile.osm.org/{z}/{x}/{y}.png'){
+                    map.removeLayer(map._layers[i]);
+                };
+            }
+        });
+        
+        // cities
+        $('#addcities').on('click', function(){
+            $('#status').text("Working...");
+            var jqxhr = $.ajax( {
+                    type: "GET",
+                    url: "http://127.0.0.1:8765/arcpyserver",
+                    data: {
+                        dataset: 'cities',
+                        cols: 'name,admin',
+                        where : "admin='" + $('#selectcountry')[0].value + "'"
+                    }
+            })
+            .done(function(data) {
+                $('#status').text("Success.");
+                console.log( "success" );
+                featurecollection = $.parseJSON(data);
+                L.geoJson(featurecollection, {
+                    onEachFeature: function (feature, layer) {
+                        layer.bindPopup(feature.properties["admin"] + "<br />" + feature.properties["admin"]);
+                    }
+                }).addTo(map);
+                console.log('features added to the map');
+                $('#status').text('Features added to the map.');
+            })
+            .fail(function(data, status, err) {
+                $('#status').text(String(err));
+                console.log('error');
+                console.log(err);
+            })
+        });
+        
+        // countries
+        $('#addcountries').on('click', function(){
+            $('#status').text("Working...");
+            var bounds = map.getBounds();
+            var bb = [bounds._southWest.lng, bounds._southWest.lat, bounds._northEast.lng,bounds._northEast.lat]
+            var jqxhr = $.ajax( {
+                    type: "GET",
+                    url: "http://127.0.0.1:8765/arcpyserver",
+                    data: {
+                        dataset: 'countries',
+                        cols: 'sovereignt,brk_a3,abbrev,postal',
+                        where : "admin='" + $('#selectcountry')[0].value + "'",
+                        bbox: bb.join(",")
+                    }
+            })
+            .done(function(data) {
+                $('#status').text("Success.");
+                console.log( "success" );
+                featurecollection = $.parseJSON(data);
+                L.geoJson(featurecollection, {
+                    onEachFeature: function (feature, layer) {
+                        layer.bindPopup(
+                            feature.properties['admin'] +
+                            "<br />" + feature.properties['brk_a3'] + 
+                            "<br />" + feature.properties['abbrev'] + 
+                            "<br /><strong>(" + feature.properties['postal'] + ")</strong>"
+                        );
+                    }
+                }).addTo(map);
+                console.log('features added to the map');
+                $('#status').text('Features added to the map.');
+            })
+            .fail(function(data, status, err) {
+                $('#status').text(String(err));
+                console.log('error');
+                console.log(err);
+            })
+        });
+        
+        window.map = map; // hang the map onto the window
+    });
+    </script>
+  </body>
+</html>
