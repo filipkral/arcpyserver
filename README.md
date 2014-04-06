@@ -1,7 +1,10 @@
 arcpyserver
 ===========
 Serve GeoJSON from Esri feature classes and shapefiles through arcpy and Python's Simple HTTP Server.
-![ArcpyServer Demo](https://github.com/filipkral/arcpyserver/blob/master/demo.jpg "Demo page of ArcpyServer")
+
+![ArcpyServer Demo](/demo.jpg "Demo page of ArcpyServer")
+
+See also [demo_urls.jpg](/demo_urls.jpg).
 
 
 How to use?
