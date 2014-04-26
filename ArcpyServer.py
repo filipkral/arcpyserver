@@ -1,4 +1,4 @@
-"""GeoJSON server based on Python HTTP Simple Server and arcpy.
+""""GeoJSON server based on Python HTTP Simple Server and arcpy.
 For details see docstring of ArcpyServerRequestHandler
 and docstring of rows_to_geojson
 """
@@ -10,6 +10,9 @@ import datetime
 import json
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 import urlparse
+import re
+
+sys.path.insert(0, r'D:\gisroot\at201303040900_test1')
 
 import mimetypes
 mimetypes.init()
@@ -134,9 +137,47 @@ def rows_to_geojson(in_fc, in_cols='*', in_wc='', returnGeometry=True, max_recor
     collection.update({'features': features})
     return collection
 
+def find_docstrings(py=None, p=False, br='', n=3):
+    """Return a list of all strings included in tripple double-quotes in a file
+
+    Parametrs:
+    py -- file to search in. If none, current script is searched.
+    p -- if True, wrap each docstring into an html <p> element; default is False
+    br -- string to append to earch row, typically '<br />', default is ''
+    ht -- if True, convert markdown to html if markdown2 module exitsts.
+    n -- number of openig double-quotes to pick up, default=3, end is always 3
+
+    Example:
+    >>> print find_docstrings()
+    >>> print find_docstrings(p=1)
+    >>> print find_docstrings('c:\\temp\\my.py', br='<br />')
+    """
+    if py is None:
+        py = str(__file__)
+    txt = ''
+    br = str(br)
+    with open(py, 'r') as pyf:
+        txt = pyf.read()
+    n*"\\\""
+    strings = re.findall(n*"\\\"" + r'(.*?)\"\"\"', txt, re.DOTALL)
+
+    if br != '':
+        strs = []
+        for st in strings:
+            chunk = []
+            stsplit = st.split('\n')
+            for s in stsplit:
+                chunk.append(s.strip() + br)
+            strs.append("".join(chunk))
+        strings = strs
+    if p:
+        strings = ['<p>' + s + '</p>' for s in strings]
+
+    return strings
+
 
 class ArcpyServerRequestHandler(BaseHTTPRequestHandler):
-    """
+    """"
     SERVER DEFINITION
     -----------------
     Handle request to a server and returns features GeoJSON etc.
@@ -210,7 +251,7 @@ class ArcpyServerRequestHandler(BaseHTTPRequestHandler):
 
         in_lr = None
         try:
-            """Hit arcpyserver"""
+            """"/arcpyserver Hit arcpyserver"""
             if '/arcpyserver' in p.lower():
 
                 #p = '/arcpyserver?dataset=test&where=1'
@@ -290,7 +331,7 @@ class ArcpyServerRequestHandler(BaseHTTPRequestHandler):
                 self.wfile.write(resp)
                 return
 
-            """Hit index"""
+            """"'', '/', 'index.html', '/index.html' Hit index"""
             if p in ('', '/', 'index.html', '/index.html'):
                 with open(os.path.join(self.wwwroot, 'index.html'), 'r') as fl:
                     filecontent = fl.read()
@@ -300,11 +341,31 @@ class ArcpyServerRequestHandler(BaseHTTPRequestHandler):
                 self.wfile.write(filecontent)
                 return
 
-            """Respond to favico request"""
+            """"/docu Hit self-generated documentation"""
+            if '/docu' in p.lower():
+                try:
+                    ds = str("".join(find_docstrings(br="<br />", n=4)))
+                    filecontent = "".join((
+                    "<!doctype html><head><title>",
+                    "ArcpyServer Docu",
+                    "</title></head><body>",
+                    ds,
+                    "</body>"
+                    ))
+                except Exception as e:
+                    filecontent = str(e)
+
+                self.send_response(200)
+                self.send_header('Content-type','text-html')
+                self.end_headers()
+                self.wfile.write(filecontent)
+                return
+
+            """"/favicon.ico Respond to favico request"""
             if p in ('/favicon.ico'):
                 self.send_error(404, 'Favico not found.')
 
-            """Else try to serve a page as html or other content"""
+            """"Else try to serve a page as html or other content"""
             fpath = os.path.join(self.wwwroot, p.strip("/").replace("/", "\\"))
             ext = fpath.split(".")[-1].lower()
             mime = mimetypes.types_map['.' + ext]
@@ -336,6 +397,7 @@ def run():
     print('http server is running on %s:%s...' % (hostname, port))
     print('try http://127.0.0.1:8765/index.html')
     print('try http://127.0.0.1:8765/arcpyserver?dataset=cities')
+    print('try http://127.0.0.1:8765/docu')
 
     httpd.serve_forever()
 
