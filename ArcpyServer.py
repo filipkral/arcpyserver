@@ -11,6 +11,7 @@ import json
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 import urlparse
 import re
+import cgi
 
 sys.path.insert(0, r'D:\gisroot\at201303040900_test1')
 
@@ -388,6 +389,55 @@ class ArcpyServerRequestHandler(BaseHTTPRequestHandler):
                 self.send_error(404, 'Page not found.')
             else:
                 self.send_error(505, 'Internal server error.')
+
+
+    def do_POST(self):
+
+        # A SAMPLE POST REQUEST HANDLER
+        # THIS ONLY ECHOES THE PARAMETERS BACK BUT CAN
+        # BE EXTENDED TO HANDLE VARIOUS POST REQUESTS
+        # COPIED FROM http://pymotw.com/2/BaseHTTPServer/
+
+        # Example with jQuery
+        #$.ajax({
+        #  type: "POST",
+        #  url: "http://127.0.0.1:8765",
+        #  data:     {u:1, v:"... long string, file, geometry, etc. ..."},
+        #  success:  function(a,b,c){ console.log(["yay", a,b,c]);},
+        #  error:    function(a,b,c){ console.log(["nay", a,b,c]);}
+        #  dataType: "text-html",
+        #});
+
+        # Parse the form data posted
+        form = cgi.FieldStorage(
+            fp=self.rfile,
+            headers=self.headers,
+            environ={'REQUEST_METHOD':'POST',
+                     'CONTENT_TYPE':self.headers['Content-Type'],
+                     })
+
+        # Begin the response
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write('Client: %s\n' % str(self.client_address))
+        self.wfile.write('User-agent: %s\n' % str(self.headers['user-agent']))
+        self.wfile.write('Path: %s\n' % self.path)
+        self.wfile.write('Form data:\n')
+
+        # Echo back information about what was posted in the form
+        for field in form.keys():
+            field_item = form[field]
+            if field_item.filename:
+                # The field contains an uploaded file
+                file_data = field_item.file.read()
+                file_len = len(file_data)
+                del file_data
+                self.wfile.write('\tUploaded %s as "%s" (%d bytes)\n' % \
+                        (field, field_item.filename, file_len))
+            else:
+                # Regular form value
+                self.wfile.write('\t%s=%s\n' % (field, form[field].value))
+        return
 
 def run():
     print('http server is starting...')
